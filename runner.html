@@ -1,13 +1,129 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bost Runner</title>
-<style>body{margin:0;background:#08111b;color:white;font-family:Arial;text-align:center}h1{margin:18px}.wrap{max-width:700px;margin:auto}canvas{width:100%;background:linear-gradient(#122b46,#07111c);border:2px solid #7657ff;border-radius:16px;touch-action:none}button{margin:12px;padding:12px 25px;border:0;border-radius:10px;background:#7657ff;color:#fff;font-weight:bold}</style></head>
-<body><h1>🏃 Bost Runner</h1><div class="wrap"><canvas id="c" width="700" height="380"></canvas><p>اضغط على الشاشة للقفز • النقاط: <b id="s">0</b></p><button onclick="location.href='../index.html'">العودة</button></div>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Bost Runner</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07111f;font-family:Arial,sans-serif}
+canvas{display:block;width:100%;height:100%}
+#ui{position:fixed;inset:0;pointer-events:none;color:#fff}
+.top{display:flex;justify-content:space-between;padding:18px;font-weight:700;font-size:18px;text-shadow:0 2px 5px #000}
+#msg{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%);text-align:center;background:rgba(5,10,20,.72);padding:24px 30px;border:1px solid rgba(255,255,255,.18);border-radius:20px;backdrop-filter:blur(8px);pointer-events:auto}
+#msg h1{margin:0 0 8px;font-size:34px}
+#msg p{margin:8px 0 18px;color:#c8d4e5}
+button{border:0;border-radius:12px;padding:12px 24px;font-size:17px;font-weight:700;background:#fff;color:#08111f}
+#touch{position:fixed;bottom:22px;left:0;right:0;display:flex;justify-content:center;pointer-events:none}
+#jump{pointer-events:auto;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.15);color:#fff;border-radius:50%;width:82px;height:82px;font-size:16px;font-weight:700;backdrop-filter:blur(8px)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui">
+  <div class="top"><span>🏃 Bost Runner</span><span>النقاط: <b id="score">0</b></span></div>
+  <div id="msg">
+    <h1>Bost Runner</h1>
+    <p>اقفز فوق العوائق وحاول تحطم رقمك القياسي.</p>
+    <button id="start">ابدأ اللعب</button>
+  </div>
+</div>
+<div id="touch"><button id="jump">قفز</button></div>
+
 <script>
-const c=document.getElementById('c'),x=c.getContext('2d'),score=document.getElementById('s');let p={x:90,y:300,w:35,h:45,vy:0},obs=[],sc=0,over=false,spawn=0;
-function jump(){if(p.y>=300&&!over)p.vy=-13;if(over)location.reload()} c.addEventListener('pointerdown',jump);addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp')jump()});
-function loop(){x.clearRect(0,0,700,380);x.fillStyle='#102b20';x.fillRect(0,345,700,35);p.vy+=.65;p.y+=p.vy;if(p.y>300){p.y=300;p.vy=0}
-spawn++;if(spawn>85){obs.push({x:700,y:315,w:25+Math.random()*20,h:30});spawn=0}
-x.fillStyle='#55e6a5';x.fillRect(p.x,p.y,p.w,p.h);x.fillStyle='#ff4d6d';
-obs.forEach(o=>{o.x-=6;x.fillRect(o.x,o.y,o.w,o.h);if(p.x<o.x+o.w&&p.x+p.w>o.x&&p.y<o.y+o.h&&p.y+p.h>o.y)over=true});
-obs=obs.filter(o=>o.x>-50);if(!over){sc++;score.textContent=Math.floor(sc/10)}else{x.fillStyle='white';x.font='bold 38px Arial';x.fillText('انتهت اللعبة! اضغط للقفز مرة أخرى',100,180)}
-requestAnimationFrame(loop)}loop();
-</script></body></html>
+const c=document.getElementById('game'),ctx=c.getContext('2d');
+const scoreEl=document.getElementById('score'),msg=document.getElementById('msg');
+let W,H,dpr,player,obs,particles,score,speed,playing,last,spawn;
+
+function resize(){
+ dpr=Math.min(devicePixelRatio||1,2); W=innerWidth; H=innerHeight;
+ c.width=W*dpr;c.height=H*dpr;c.style.width=W+'px';c.style.height=H+'px';
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+addEventListener('resize',resize);resize();
+
+function reset(){
+ player={x:W*.18,y:0,w:38,h:52,vy:0,onGround:true};
+ obs=[];particles=[];score=0;speed=390;spawn=0;scoreEl.textContent=0;
+}
+function ground(){return H*.78}
+function jump(){
+ if(!playing)return;
+ if(player.onGround){player.vy=-780;player.onGround=false;
+   for(let i=0;i<8;i++)particles.push({x:player.x+20,y:ground(),vx:(Math.random()-.5)*100,vy:-Math.random()*100,life:.5});
+ }
+}
+addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump()}});
+document.getElementById('jump').addEventListener('pointerdown',jump);
+document.getElementById('start').onclick=()=>{msg.classList.add('hidden');reset();playing=true;last=performance.now();requestAnimationFrame(loop)};
+
+function addObstacle(){
+ let h=34+Math.random()*48,w=25+Math.random()*24;
+ obs.push({x:W+40,y:ground()-h,w,h});
+}
+function rect(x,y,w,h,r){
+ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();
+}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ let g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#081a36');g.addColorStop(.55,'#153c67');g.addColorStop(1,'#07111f');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ // moon
+ ctx.fillStyle='rgba(255,255,230,.9)';ctx.beginPath();ctx.arc(W*.82,H*.18,32,0,Math.PI*2);ctx.fill();
+ // stars
+ ctx.fillStyle='rgba(255,255,255,.75)';
+ for(let i=0;i<55;i++){let x=(i*83)%W,y=(i*47)%(H*.55);ctx.fillRect(x,y,2,2)}
+ // distant city
+ ctx.fillStyle='#0d2744';
+ for(let x=0;x<W;x+=48){let h=35+((x*13)%70);ctx.fillRect(x,ground()-h,40,h)}
+ // ground
+ ctx.fillStyle='#091421';ctx.fillRect(0,ground(),W,H-ground());
+ ctx.fillStyle='#1c4d6f';ctx.fillRect(0,ground(),W,4);
+ // moving ground marks
+ ctx.fillStyle='rgba(255,255,255,.15)';
+ let off=(performance.now()/4)%70;
+ for(let x=-off;x<W;x+=70)ctx.fillRect(x,ground()+38,32,3);
+ // obstacles
+ for(const o of obs){
+   ctx.fillStyle='#ff5b5b';rect(o.x,o.y,o.w,o.h,7);
+   ctx.fillStyle='#ffb36b';ctx.fillRect(o.x+5,o.y+6,o.w-10,5);
+ }
+ // player shadow
+ ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(player.x+20,ground()+3,25,6,0,0,Math.PI*2);ctx.fill();
+ // player
+ ctx.fillStyle='#42d9ff';rect(player.x,player.y,player.w,player.h,10);
+ ctx.fillStyle='#092238';rect(player.x+7,player.y+10,24,15,5);
+ ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(player.x+25,player.y+17,3,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#28a9d0';rect(player.x+6,player.y+player.h-4,10,8,4);rect(player.x+25,player.y+player.h-4,10,8,4);
+ // particles
+ for(const p of particles){ctx.globalAlpha=Math.max(0,p.life*2);ctx.fillStyle='#8edfff';ctx.fillRect(p.x,p.y,4,4)}ctx.globalAlpha=1;
+}
+function collide(a,b){
+ return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+}
+function loop(t){
+ if(!playing)return;
+ let dt=Math.min((t-last)/1000,.035);last=t;
+ score+=dt*10;scoreEl.textContent=Math.floor(score);
+ speed+=dt*4;spawn-=dt;
+ if(spawn<=0){addObstacle();spawn=.85+Math.random()*.65}
+ player.vy+=1900*dt;player.y+=player.vy*dt;
+ if(player.y+player.h>=ground()){player.y=ground()-player.h;player.vy=0;player.onGround=true}
+ for(const o of obs)o.x-=speed*dt;
+ obs=obs.filter(o=>o.x+o.w>-50);
+ for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=300*dt;p.life-=dt}
+ particles=particles.filter(p=>p.life>0);
+ for(const o of obs)if(collide(player,o)){gameOver();return}
+ draw();requestAnimationFrame(loop);
+}
+function gameOver(){
+ playing=false;draw();
+ msg.classList.remove('hidden');
+ msg.querySelector('h1').textContent='انتهت اللعبة 😅';
+ msg.querySelector('p').textContent='نتيجتك: '+Math.floor(score)+' نقطة';
+ msg.querySelector('button').textContent='العب مرة أخرى';
+}
+reset();player.y=ground()-player.h;draw();
+</script>
+</body>
+</html>
