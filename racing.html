@@ -1,15 +1,59 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bost Racing</title>
-<style>body{margin:0;background:#090b10;color:#fff;font-family:Arial;text-align:center}.wrap{max-width:700px;margin:auto}canvas{width:100%;background:#252832;border:2px solid #7657ff;border-radius:16px;touch-action:none}button{padding:11px 20px;margin:10px;border:0;border-radius:10px;background:#7657ff;color:#fff;font-weight:bold}</style></head>
-<body><h1>🏎️ Bost Racing</h1><div class="wrap"><canvas id="c" width="700" height="420"></canvas><p>حرّك سيارتك يمين/شمال • النقاط: <b id="s">0</b></p><button onclick="location.href='../index.html'">العودة</button></div>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Bost Racing</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080a0e;font-family:Arial,sans-serif}
+canvas{display:block;width:100%;height:100%}
+#ui{position:fixed;inset:0;pointer-events:none;color:#fff}
+.top{display:flex;justify-content:space-between;padding:18px;font-weight:bold;text-shadow:0 2px 5px #000}
+#msg{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%);text-align:center;background:rgba(5,8,14,.78);padding:25px 30px;border-radius:20px;border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(8px);pointer-events:auto;min-width:280px}
+#msg h1{margin:0 0 8px;font-size:32px}#msg p{color:#c8d0da;margin:8px 0 18px}
+button{border:0;border-radius:12px;padding:12px 24px;font-size:17px;font-weight:bold}
+#start{background:#fff;color:#111}
+#controls{position:fixed;bottom:20px;left:0;right:0;display:flex;justify-content:space-between;padding:0 22px;pointer-events:none}
+.ctrl{pointer-events:auto;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:28px;backdrop-filter:blur(8px)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui">
+<div class="top"><span>🏎️ Bost Racing</span><span>النقاط: <b id="score">0</b></span></div>
+<div id="msg"><h1>Bost Racing</h1><p>تحكم في السيارة وتجنب السيارات والعوائق.</p><button id="start">ابدأ السباق</button></div>
+</div>
+<div id="controls"><button class="ctrl" id="left">◀</button><button class="ctrl" id="right">▶</button></div>
 <script>
-const c=document.getElementById('c'),x=c.getContext('2d'),s=document.getElementById('s');let car={x:325,y:340,w:50,h:75},blocks=[],score=0,left=false,right=false,over=false;
-addEventListener('keydown',e=>{if(e.key==='ArrowLeft')left=true;if(e.key==='ArrowRight')right=true});addEventListener('keyup',e=>{if(e.key==='ArrowLeft')left=false;if(e.key==='ArrowRight')right=false});
-c.addEventListener('pointermove',e=>{if(e.pointerType==='touch'){let r=c.getBoundingClientRect();car.x=(e.clientX-r.left)*(700/r.width)-25}});
-function add(){blocks.push({x:80+Math.random()*500,y:-90,w:45,h:75})}
-function loop(){x.clearRect(0,0,700,420);x.fillStyle='#3a3d47';x.fillRect(70,0,560,420);x.strokeStyle='#ddd';x.setLineDash([30,25]);x.lineWidth=5;x.beginPath();x.moveTo(350,0);x.lineTo(350,420);x.stroke();x.setLineDash([]);
-if(left)car.x-=7;if(right)car.x+=7;car.x=Math.max(75,Math.min(575,car.x));if(Math.random()<.025)add();
-x.fillStyle='#28a9ff';x.fillRect(car.x,car.y,car.w,car.h);x.fillStyle='#111';x.fillRect(car.x+8,car.y+10,34,18);
-blocks.forEach(b=>{b.y+=6;x.fillStyle='#ff4d6d';x.fillRect(b.x,b.y,b.w,b.h);if(car.x<b.x+b.w&&car.x+car.w>b.x&&car.y<b.y+b.h&&car.y+car.h>b.y)over=true});
-blocks=blocks.filter(b=>b.y<450);if(!over){score++;s.textContent=Math.floor(score/5)}else{x.fillStyle='white';x.font='bold 40px Arial';x.fillText('اصطدمت! اضغط إعادة تحميل',180,210)}
-requestAnimationFrame(loop)}loop();
-</script></body></html>
+const c=document.getElementById('game'),ctx=c.getContext('2d');let W,H,dpr,car,traffic,score,speed,playing,last,spawn,left=false,right=false;
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;c.style.width=W+'px';c.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
+const road=()=>({x:W*.16,w:W*.68});function reset(){let r=road();car={x:W/2-22,y:H*.78-92,w:44,h:82};traffic=[];score=0;speed=420;spawn=.7}
+function laneX(l,w){let r=road();return r.x+r.w*(l+.5)/3-w/2}
+function addCar(){let w=42,h=78,l=Math.floor(Math.random()*3);traffic.push({x:laneX(l,w),y:-100,w,h,l,spd:Math.random()*90+30})}
+function start(){document.getElementById('msg').classList.add('hidden');reset();playing=true;last=performance.now();requestAnimationFrame(loop)}
+document.getElementById('start').onclick=start;
+function press(dir,on){return e=>{e.preventDefault();dir==='l'?left=on:right=on}}
+['pointerdown','touchstart'].forEach(ev=>{document.getElementById('left').addEventListener(ev,press('l',true));document.getElementById('right').addEventListener(ev,press('r',true))});
+['pointerup','pointercancel','touchend'].forEach(ev=>{document.getElementById('left').addEventListener(ev,press('l',false));document.getElementById('right').addEventListener(ev,press('r',false))});
+addEventListener('keydown',e=>{if(e.key==='ArrowLeft')left=true;if(e.key==='ArrowRight')right=true});
+addEventListener('keyup',e=>{if(e.key==='ArrowLeft')left=false;if(e.key==='ArrowRight')right=false});
+function hit(a,b){return a.x+6<b.x+b.w-6&&a.x+a.w-6>b.x+6&&a.y+8<b.y+b.h-8&&a.y+a.h-8>b.y+8}
+function draw(){
+ctx.clearRect(0,0,W,H);ctx.fillStyle='#08150d';ctx.fillRect(0,0,W,H);
+let r=road();ctx.fillStyle='#22252b';ctx.fillRect(r.x,0,r.w,H);
+ctx.fillStyle='#ddd';ctx.fillRect(r.x-5,0,5,H);ctx.fillRect(r.x+r.w,0,5,H);
+let off=(performance.now()/2.5)%(H/7);
+ctx.fillStyle='rgba(255,255,255,.7)';for(let l=1;l<3;l++)for(let y=-H/7+off;y<H;y+=H/7)ctx.fillRect(r.x+r.w*l/3-3,y,6,H/14);
+ctx.fillStyle='#159447';ctx.fillRect(0,0,r.x-5,H);ctx.fillRect(r.x+r.w+5,0,W-r.x-r.w-5,H);
+for(const t of traffic){ctx.fillStyle=t.color||'#e5484d';ctx.beginPath();ctx.roundRect(t.x,t.y,t.w,t.h,10);ctx.fill();ctx.fillStyle='#b9e5ff';ctx.fillRect(t.x+7,t.y+12,t.w-14,15);ctx.fillStyle='#111';ctx.fillRect(t.x+6,t.y+t.h-13,9,5);ctx.fillRect(t.x+t.w-15,t.y+t.h-13,9,5)}
+ctx.fillStyle='#28b7ff';ctx.beginPath();ctx.roundRect(car.x,car.y,car.w,car.h,11);ctx.fill();ctx.fillStyle='#bfeeff';ctx.fillRect(car.x+7,car.y+13,car.w-14,22);ctx.fillStyle='#101820';ctx.fillRect(car.x+6,car.y+car.h-15,10,7);ctx.fillRect(car.x+car.w-16,car.y+car.h-15,10,7)
+}
+function gameOver(){playing=false;document.getElementById('msg').classList.remove('hidden');document.querySelector('#msg h1').textContent='انتهى السباق 🏁';document.querySelector('#msg p').textContent='نتيجتك: '+Math.floor(score);document.getElementById('start').textContent='سباق جديد'}
+function loop(t){if(!playing)return;let dt=Math.min((t-last)/1000,.035);last=t;let r=road();score+=dt*10;document.getElementById('score').textContent=Math.floor(score);speed+=dt*7;spawn-=dt;if(spawn<=0){addCar();spawn=.55+Math.random()*.5}
+if(left)car.x-=430*dt;if(right)car.x+=430*dt;car.x=Math.max(r.x+10,Math.min(r.x+r.w-car.w-10,car.x));
+for(const v of traffic)v.y+=(speed-v.spd)*dt;traffic=traffic.filter(v=>v.y<H+100);for(const v of traffic)if(hit(car,v)){gameOver();draw();return}draw();requestAnimationFrame(loop)}
+reset();draw();
+</script>
+</body>
+</html>
