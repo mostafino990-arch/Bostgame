@@ -1,10 +1,83 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bost Shooter</title>
-<style>body{margin:0;background:#080b12;color:white;font-family:Arial;text-align:center}.wrap{max-width:700px;margin:auto}canvas{width:100%;background:radial-gradient(circle,#182237,#070a10);border:2px solid #7657ff;border-radius:16px;touch-action:none}button{padding:11px 20px;margin:10px;border:0;border-radius:10px;background:#7657ff;color:#fff;font-weight:bold}</style></head>
-<body><h1>🎯 Bost Shooter</h1><div class="wrap"><canvas id="c" width="700" height="420"></canvas><p>اضغط على الهدف • الوقت: <b id="t">30</b> ثانية • النقاط: <b id="s">0</b></p><button onclick="location.href='../index.html'">العودة</button></div>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Bost Shooter</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080b12;font-family:Arial,sans-serif}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#ui{position:fixed;inset:0;pointer-events:none;color:#fff}
+.top{display:flex;justify-content:space-between;padding:18px;font-weight:bold;text-shadow:0 2px 5px #000}
+#msg{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%);text-align:center;background:rgba(5,8,15,.82);padding:25px 30px;border-radius:20px;border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(8px);pointer-events:auto;min-width:280px}
+#msg h1{margin:0 0 8px;font-size:32px}#msg p{color:#c8d0da;margin:8px 0 18px}
+button{border:0;border-radius:12px;padding:12px 24px;font-size:17px;font-weight:bold;background:#fff;color:#111}
+#hint{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.35);padding:9px 15px;border-radius:12px;color:#ddd;font-size:14px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui">
+<div class="top"><span>🎮 Bost Shooter</span><span>النقاط: <b id="score">0</b></span></div>
+<div id="msg"><h1>Bost Shooter</h1><p>اضغط على الأهداف قبل أن تصل إليك.</p><button id="start">ابدأ اللعب</button></div>
+<div id="hint">اضغط على الهدف باللمس أو بالماوس</div>
+</div>
 <script>
-const c=document.getElementById('c'),x=c.getContext('2d'),s=document.getElementById('s'),t=document.getElementById('t');let target={x:350,y:210,r:32},score=0,time=30,over=false;
-function move(){target.x=45+Math.random()*610;target.y=45+Math.random()*330;target.r=20+Math.random()*20}
-c.addEventListener('pointerdown',e=>{if(over)return location.reload();let r=c.getBoundingClientRect(),mx=(e.clientX-r.left)*700/r.width,my=(e.clientY-r.top)*420/r.height;if(Math.hypot(mx-target.x,my-target.y)<target.r){score++;s.textContent=score;move()}});
-setInterval(()=>{if(!over){time--;t.textContent=time;if(time<=0)over=true}},1000);
-function loop(){x.clearRect(0,0,700,420);x.beginPath();x.arc(target.x,target.y,target.r,0,7);x.fillStyle='#ff405c';x.fill();x.beginPath();x.arc(target.x,target.y,target.r*.55,0,7);x.fillStyle='#fff';x.fill();x.beginPath();x.arc(target.x,target.y,target.r*.25,0,7);x.fillStyle='#ff405c';x.fill();if(over){x.fillStyle='white';x.font='bold 40px Arial';x.fillText('انتهى الوقت! اضغط للعب مجددًا',115,210)}requestAnimationFrame(loop)}loop();
-</script></body></html>
+const c=document.getElementById('game'),ctx=c.getContext('2d');
+let W,H,dpr,targets=[],particles=[],score=0,playing=false,last=0,spawn=0,time=0;
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;c.style.width=W+'px';c.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',resize);resize();
+function reset(){targets=[];particles=[];score=0;spawn=.5;time=0;document.getElementById('score').textContent=0}
+function start(){document.getElementById('msg').classList.add('hidden');reset();playing=true;last=performance.now();requestAnimationFrame(loop)}
+document.getElementById('start').onclick=start;
+function addTarget(){
+ let r=23+Math.random()*13;
+ targets.push({x:60+r+Math.random()*(W-120-r*2),y:90+r+Math.random()*(H-190-r*2),r,life:2.8});
+}
+c.addEventListener('pointerdown',e=>{
+ if(!playing)return;
+ const rect=c.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
+ for(let i=targets.length-1;i>=0;i--){
+  let t=targets[i],d=Math.hypot(x-t.x,y-t.y);
+  if(d<=t.r+12){score+=10;document.getElementById('score').textContent=score;
+   for(let j=0;j<14;j++)particles.push({x:t.x,y:t.y,vx:(Math.random()-.5)*260,vy:(Math.random()-.5)*260,life:.55});
+   targets.splice(i,1);return;
+  }
+ }
+});
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ let g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#071529');g.addColorStop(1,'#13091b');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ for(let i=0;i<45;i++){let x=(i*97)%W,y=(i*53+time*10)%(H*.8);ctx.fillStyle='rgba(255,255,255,.25)';ctx.fillRect(x,y,2,2)}
+ for(const t of targets){
+   let pulse=1+Math.sin(time*7+t.x)*.08;
+   ctx.save();ctx.translate(t.x,t.y);ctx.scale(pulse,pulse);
+   ctx.fillStyle='rgba(255,70,90,.18)';ctx.beginPath();ctx.arc(0,0,t.r+12,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#ef4d62';ctx.beginPath();ctx.arc(0,0,t.r,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(0,0,t.r*.55,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#ef4d62';ctx.beginPath();ctx.arc(0,0,t.r*.25,0,Math.PI*2);ctx.fill();
+   ctx.restore();
+ }
+ for(const p of particles){ctx.globalAlpha=Math.max(0,p.life*2);ctx.fillStyle='#ffd166';ctx.fillRect(p.x,p.y,5,5)}ctx.globalAlpha=1;
+}
+function gameOver(){
+ playing=false;document.getElementById('msg').classList.remove('hidden');
+ document.querySelector('#msg h1').textContent='انتهت اللعبة 🎯';
+ document.querySelector('#msg p').textContent='نتيجتك: '+score+' نقطة';
+ document.getElementById('start').textContent='العب مرة أخرى';
+}
+function loop(t){
+ if(!playing)return;
+ let dt=Math.min((t-last)/1000,.035);last=t;time+=dt;score=Math.max(0,score);
+ spawn-=dt;if(spawn<=0){addTarget();spawn=.65+Math.random()*.55}
+ for(const x of targets)x.life-=dt;
+ if(targets.some(x=>x.life<=0)){gameOver();draw();return}
+ for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.96;p.vy*=.96;p.life-=dt}
+ targets=targets.filter(x=>x.life>0);particles=particles.filter(x=>x.life>0);
+ draw();requestAnimationFrame(loop)
+}
+reset();draw();
+</script>
+</body>
+</html>
