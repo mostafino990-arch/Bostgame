@@ -1,29 +1,145 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bostgame ألعاب الأصلية</title>
+<title>Bostgame | Free Online Games</title>
+<meta name="description" content="Bostgame - Play fun free online games directly in your browser.">
 <style>
-body{margin:0;background:#101114;color:#fff;font-family:Arial,sans-serif}
-header{text-align:center;padding:45px 20px 25px}
-h1{margin:0 0 10px;font-size:38px}
-header p{color:#aaa}
-.games{max-width:900px;margin:25px auto;padding:20px;display:grid;gap:18px}
-.card{background:#191b21;border:1px solid #292c34;border-radius:18px;padding:25px}
-.card p{color:#bbb}
-.play{display:inline-block;background:#fff;color:#111;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:bold}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100vh;
+  font-family:Arial,Helvetica,sans-serif;
+  color:#fff;
+  overflow-x:hidden;
+  background:
+    radial-gradient(circle at 20% 20%,rgba(0,255,255,.14),transparent 28%),
+    radial-gradient(circle at 80% 70%,rgba(255,0,170,.13),transparent 30%),
+    linear-gradient(135deg,#050014,#090b24 45%,#02030c);
+  position:relative;
+}
+body:before{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;opacity:.35;
+  background-image:radial-gradient(#fff 1px,transparent 1px);
+  background-size:42px 42px;
+  animation:stars 18s linear infinite;
+}
+@keyframes stars{to{transform:translateY(42px)}}
+
+.container{width:min(1100px,92%);margin:auto;position:relative;z-index:2}
+header{text-align:center;padding:58px 0 35px}
+.logo{
+  font-size:clamp(48px,11vw,100px);
+  font-weight:1000;
+  letter-spacing:6px;
+  color:#fff;
+  text-shadow:
+    0 0 8px #00ffff,
+    0 0 22px #00ffff,
+    0 0 42px #ff00cc,
+    0 0 70px #7a00ff;
+  animation:rgbText 4s linear infinite;
+}
+@keyframes rgbText{
+  0%{filter:hue-rotate(0deg)}
+  50%{filter:hue-rotate(180deg)}
+  100%{filter:hue-rotate(360deg)}
+}
+.subtitle{margin-top:12px;color:#cfd4ff;font-size:clamp(15px,3vw,20px)}
+.games{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:28px;
+  padding:25px 0 60px;
+}
+.card{
+  position:relative;
+  min-height:300px;
+  border-radius:24px;
+  padding:4px;
+  overflow:hidden;
+  background:linear-gradient(90deg,#ff0055,#ffea00,#00ff99,#00eaff,#6c00ff,#ff00cc,#ff0055);
+  background-size:400% 400%;
+  animation:rgbBorder 5s linear infinite;
+  box-shadow:0 0 18px rgba(0,255,255,.2),0 0 28px rgba(255,0,180,.15);
+}
+.card:before{
+  content:"";position:absolute;inset:-50%;
+  background:conic-gradient(from 0deg,#ff0055,#ffe600,#00ff99,#00eaff,#6c00ff,#ff00cc,#ff0055);
+  animation:spin 3s linear infinite;
+  z-index:0;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes rgbBorder{
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+.card-inner{
+  position:relative;z-index:1;height:100%;min-height:292px;
+  border-radius:20px;padding:28px;
+  background:linear-gradient(145deg,rgba(10,12,35,.97),rgba(3,4,15,.98));
+  display:flex;flex-direction:column;justify-content:flex-end;
+}
+.icon{font-size:58px;margin-bottom:auto;filter:drop-shadow(0 0 12px #00eaff)}
+h2{font-size:28px;margin-bottom:9px}
+.card p{color:#b8c0df;line-height:1.5;margin-bottom:22px}
+.play{
+  display:block;text-align:center;text-decoration:none;color:#fff;
+  font-weight:800;font-size:17px;padding:13px 18px;border-radius:13px;
+  background:linear-gradient(90deg,#00c6ff,#7b2cff,#ff00a8);
+  box-shadow:0 0 16px rgba(0,200,255,.35);
+  transition:.2s;
+}
+.play:hover{transform:scale(1.04);box-shadow:0 0 25px rgba(255,0,200,.65)}
+footer{text-align:center;color:#737b9e;padding:0 0 30px;font-size:13px}
+
+@media(max-width:800px){
+  .games{grid-template-columns:1fr;gap:22px}
+  .card{min-height:250px}
+  .card-inner{min-height:242px}
+  header{padding-top:38px}
+}
 </style>
 </head>
 <body>
+<div class="container">
 <header>
-<h1>Bostgame ألعاب الأصلية</h1>
-<p>ثلاث ألعاب تجريبية صنعت خصيصًا للمنصة.</p>
+  <div class="logo">BOSTGAME</div>
+  <div class="subtitle">🎮 Play • Compete • Have Fun</div>
 </header>
+
 <main class="games">
-<section class="card"><h2>🏃 Bost Runner</h2><p>لعبة الجري وتجنب العقبات.</p><a class="play" href="runner.html">العب الآن</a></section>
-<section class="card"><h2>🏎️ Bost Racing</h2><p>لعبة سباق سيارات.</p><a class="play" href="racing.html">العب الآن</a></section>
-<section class="card"><h2>🎮 Bost Shooter</h2><p>لعبة تصويب تجريبية.</p><a class="play" href="shooter.html">العب الآن</a></section>
+  <article class="card">
+    <div class="card-inner">
+      <div class="icon">🏃‍♂️</div>
+      <h2>Bost Runner</h2>
+      <p>Run, jump and survive as long as you can.</p>
+      <a class="play" href="runner.html">PLAY NOW ▶</a>
+    </div>
+  </article>
+
+  <article class="card">
+    <div class="card-inner">
+      <div class="icon">🏎️</div>
+      <h2>Neon Racing</h2>
+      <p>Drive fast, dodge traffic and beat your score.</p>
+      <a class="play" href="racing.html">PLAY NOW ▶</a>
+    </div>
+  </article>
+
+  <article class="card">
+    <div class="card-inner">
+      <div class="icon">🎯</div>
+      <h2>Target Rush</h2>
+      <p>Hit the targets quickly and build your high score.</p>
+      <a class="play" href="shooter.html">PLAY NOW ▶</a>
+    </div>
+  </article>
 </main>
+
+<footer>© 2026 Bostgame • Made for gamers</footer>
+</div>
 </body>
 </html>
