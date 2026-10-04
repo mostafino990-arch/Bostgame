@@ -1,83 +1,185 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
-<title>Bost Shooter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Bostgame - Neon Target Rush</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080b12;font-family:Arial,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#02030b;font-family:Arial,sans-serif;color:white}
 canvas{display:block;width:100%;height:100%;touch-action:none}
-#ui{position:fixed;inset:0;pointer-events:none;color:#fff}
-.top{display:flex;justify-content:space-between;padding:18px;font-weight:bold;text-shadow:0 2px 5px #000}
-#msg{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%);text-align:center;background:rgba(5,8,15,.82);padding:25px 30px;border-radius:20px;border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(8px);pointer-events:auto;min-width:280px}
-#msg h1{margin:0 0 8px;font-size:32px}#msg p{color:#c8d0da;margin:8px 0 18px}
-button{border:0;border-radius:12px;padding:12px 24px;font-size:17px;font-weight:bold;background:#fff;color:#111}
-#hint{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.35);padding:9px 15px;border-radius:12px;color:#ddd;font-size:14px}
+#hud{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:3;
+display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap}
+.badge{padding:10px 16px;border:2px solid #00eaff;border-radius:14px;background:rgba(3,8,25,.78);
+box-shadow:0 0 12px #00eaff, inset 0 0 12px rgba(0,234,255,.15);font-weight:800}
+#message{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+z-index:4;background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
+.panel{text-align:center;padding:30px 28px;border-radius:24px;background:rgba(5,7,25,.94);
+border:3px solid #ff00cc;box-shadow:0 0 18px #ff00cc,0 0 50px #5d00ff}
+h1{margin:0 0 8px;font-size:clamp(34px,8vw,64px);text-shadow:0 0 10px #00eaff,0 0 25px #ff00cc}
+p{color:#cdd5ff}
+button{border:0;border-radius:14px;padding:13px 25px;font-size:18px;font-weight:900;color:#fff;
+background:linear-gradient(90deg,#00c6ff,#7b2cff,#ff00a8);box-shadow:0 0 18px #00c6ff;cursor:pointer}
 .hidden{display:none!important}
+#hint{position:fixed;bottom:15px;left:50%;transform:translateX(-50%);z-index:3;
+color:#aeb8df;background:rgba(0,0,0,.35);padding:8px 14px;border-radius:10px;font-size:13px}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="ui">
-<div class="top"><span>🎮 Bost Shooter</span><span>النقاط: <b id="score">0</b></span></div>
-<div id="msg"><h1>Bost Shooter</h1><p>اضغط على الأهداف قبل أن تصل إليك.</p><button id="start">ابدأ اللعب</button></div>
-<div id="hint">اضغط على الهدف باللمس أو بالماوس</div>
+
+<div id="hud">
+  <div class="badge">🎯 SCORE: <span id="score">0</span></div>
+  <div class="badge">🔥 COMBO: <span id="combo">0</span></div>
+  <div class="badge">⏱️ TIME: <span id="time">30</span></div>
 </div>
+
+<div id="hint">اضغط على الهدف بسرعة • Touch / Mouse</div>
+
+<div id="message">
+  <div class="panel">
+    <h1>🎯 TARGET RUSH</h1>
+    <p>اضرب الأهداف قبل ما تختفي!</p>
+    <button id="start">START GAME ▶</button>
+  </div>
+</div>
+
 <script>
-const c=document.getElementById('game'),ctx=c.getContext('2d');
-let W,H,dpr,targets=[],particles=[],score=0,playing=false,last=0,spawn=0,time=0;
-function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;c.style.width=W+'px';c.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}
-addEventListener('resize',resize);resize();
-function reset(){targets=[];particles=[];score=0;spawn=.5;time=0;document.getElementById('score').textContent=0}
-function start(){document.getElementById('msg').classList.add('hidden');reset();playing=true;last=performance.now();requestAnimationFrame(loop)}
-document.getElementById('start').onclick=start;
-function addTarget(){
- let r=23+Math.random()*13;
- targets.push({x:60+r+Math.random()*(W-120-r*2),y:90+r+Math.random()*(H-190-r*2),r,life:2.8});
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const scoreEl=document.getElementById("score");
+const comboEl=document.getElementById("combo");
+const timeEl=document.getElementById("time");
+const message=document.getElementById("message");
+const startBtn=document.getElementById("start");
+
+let W,H,dpr=1;
+let running=false,score=0,combo=0,timeLeft=30;
+let target=null,particles=[],stars=[],last=0,targetTimer=0,spawnEvery=900;
+let highScore=Number(localStorage.getItem("bostTargetHigh")||0);
+
+function resize(){
+  dpr=Math.min(devicePixelRatio||1,2);
+  W=innerWidth;H=innerHeight;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  stars=Array.from({length:Math.max(60,Math.floor(W*H/12000))},()=>({
+    x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.7+.3,a:Math.random()
+  }));
 }
-c.addEventListener('pointerdown',e=>{
- if(!playing)return;
- const rect=c.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
- for(let i=targets.length-1;i>=0;i--){
-  let t=targets[i],d=Math.hypot(x-t.x,y-t.y);
-  if(d<=t.r+12){score+=10;document.getElementById('score').textContent=score;
-   for(let j=0;j<14;j++)particles.push({x:t.x,y:t.y,vx:(Math.random()-.5)*260,vy:(Math.random()-.5)*260,life:.55});
-   targets.splice(i,1);return;
+addEventListener("resize",resize);resize();
+
+function rand(a,b){return a+Math.random()*(b-a)}
+
+function spawnTarget(){
+  const r=rand(28,55);
+  const margin=20;
+  target={
+    x:rand(r+margin,W-r-margin),
+    y:rand(Math.max(100,r+margin),H-r-55),
+    r,
+    born:performance.now(),
+    life:rand(850,1350),
+    hue:Math.floor(Math.random()*360),
+    pulse:0
+  };
+}
+
+function burst(x,y,hue){
+  for(let i=0;i<28;i++){
+    const a=Math.random()*Math.PI*2,s=rand(80,330);
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,
+      life:rand(.35,.8),max:.8,size:rand(2,6),hue});
   }
- }
-});
-function draw(){
- ctx.clearRect(0,0,W,H);
- let g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#071529');g.addColorStop(1,'#13091b');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
- for(let i=0;i<45;i++){let x=(i*97)%W,y=(i*53+time*10)%(H*.8);ctx.fillStyle='rgba(255,255,255,.25)';ctx.fillRect(x,y,2,2)}
- for(const t of targets){
-   let pulse=1+Math.sin(time*7+t.x)*.08;
-   ctx.save();ctx.translate(t.x,t.y);ctx.scale(pulse,pulse);
-   ctx.fillStyle='rgba(255,70,90,.18)';ctx.beginPath();ctx.arc(0,0,t.r+12,0,Math.PI*2);ctx.fill();
-   ctx.fillStyle='#ef4d62';ctx.beginPath();ctx.arc(0,0,t.r,0,Math.PI*2);ctx.fill();
-   ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(0,0,t.r*.55,0,Math.PI*2);ctx.fill();
-   ctx.fillStyle='#ef4d62';ctx.beginPath();ctx.arc(0,0,t.r*.25,0,Math.PI*2);ctx.fill();
-   ctx.restore();
- }
- for(const p of particles){ctx.globalAlpha=Math.max(0,p.life*2);ctx.fillStyle='#ffd166';ctx.fillRect(p.x,p.y,5,5)}ctx.globalAlpha=1;
 }
-function gameOver(){
- playing=false;document.getElementById('msg').classList.remove('hidden');
- document.querySelector('#msg h1').textContent='انتهت اللعبة 🎯';
- document.querySelector('#msg p').textContent='نتيجتك: '+score+' نقطة';
- document.getElementById('start').textContent='العب مرة أخرى';
+
+function update(dt,now){
+  if(!running)return;
+  timeLeft-=dt;
+  if(timeLeft<=0){timeLeft=0;endGame();return}
+  timeEl.textContent=Math.ceil(timeLeft);
+
+  targetTimer+=dt*1000;
+  if(!target && targetTimer>200) {spawnTarget();targetTimer=0}
+  if(target && now-target.born>target.life){combo=0;comboEl.textContent=combo;target=null;targetTimer=0}
+
+  particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=160*dt;p.life-=dt});
+  particles=particles.filter(p=>p.life>0);
 }
-function loop(t){
- if(!playing)return;
- let dt=Math.min((t-last)/1000,.035);last=t;time+=dt;score=Math.max(0,score);
- spawn-=dt;if(spawn<=0){addTarget();spawn=.65+Math.random()*.55}
- for(const x of targets)x.life-=dt;
- if(targets.some(x=>x.life<=0)){gameOver();draw();return}
- for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.96;p.vy*=.96;p.life-=dt}
- targets=targets.filter(x=>x.life>0);particles=particles.filter(x=>x.life>0);
- draw();requestAnimationFrame(loop)
+
+function draw(now){
+  ctx.clearRect(0,0,W,H);
+
+  const g=ctx.createLinearGradient(0,0,W,H);
+  g.addColorStop(0,"#05001a");g.addColorStop(.5,"#07152e");g.addColorStop(1,"#16001c");
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  stars.forEach(s=>{
+    const alpha=.35+.35*Math.sin(now/700+s.a*8);
+    ctx.globalAlpha=alpha;ctx.fillStyle="#fff";
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  if(target){
+    const age=now-target.born;
+    const pulse=Math.sin(age/90)*3;
+    const r=target.r+pulse;
+    ctx.save();
+    ctx.shadowBlur=28;ctx.shadowColor=`hsl(${target.hue},100%,60%)`;
+    ctx.strokeStyle=`hsl(${target.hue},100%,65%)`;ctx.lineWidth=5;
+    ctx.beginPath();ctx.arc(target.x,target.y,r,0,Math.PI*2);ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.fillStyle=`hsla(${target.hue},100%,55%,.16)`;
+    ctx.beginPath();ctx.arc(target.x,target.y,r,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle="#fff";ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(target.x,target.y,r*.67,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(target.x,target.y,r*.25,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+
+  particles.forEach(p=>{
+    ctx.save();ctx.globalAlpha=Math.max(0,p.life/p.max);
+    ctx.shadowBlur=15;ctx.shadowColor=`hsl(${p.hue},100%,60%)`;
+    ctx.fillStyle=`hsl(${p.hue},100%,65%)`;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();ctx.restore();
+  });
 }
-reset();draw();
+
+function loop(now){
+  const dt=Math.min(.04,(now-last)/1000||0);last=now;
+  update(dt,now);draw(now);requestAnimationFrame(loop);
+}
+
+function startGame(){
+  score=0;combo=0;timeLeft=30;target=null;particles=[];targetTimer=0;
+  scoreEl.textContent=score;comboEl.textContent=combo;timeEl.textContent=timeLeft;
+  running=true;message.classList.add("hidden");startBtn.textContent="PLAY AGAIN ▶";
+}
+function endGame(){
+  running=false;target=null;
+  if(score>highScore){highScore=score;localStorage.setItem("bostTargetHigh",highScore)}
+  message.querySelector("h1").textContent="GAME OVER";
+  message.querySelector("p").innerHTML=`Score: <b>${score}</b><br>🏆 Best: <b>${highScore}</b>`;
+  message.classList.remove("hidden");
+}
+function hit(x,y){
+  if(!running||!target)return;
+  const d=Math.hypot(x-target.x,y-target.y);
+  if(d<=target.r){
+    score+=10+combo*2;combo++;
+    scoreEl.textContent=score;comboEl.textContent=combo;
+    burst(target.x,target.y,target.hue);
+    target=null;targetTimer=0;
+    spawnTarget();
+  }else{
+    combo=0;comboEl.textContent=combo;
+  }
+}
+canvas.addEventListener("pointerdown",e=>hit(e.clientX,e.clientY));
+startBtn.addEventListener("click",startGame);
+document.addEventListener("keydown",e=>{if(e.key===" "&& !running)startGame()});
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
